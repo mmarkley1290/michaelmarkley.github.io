@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC SIGNALS // Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0d0f;
+    --bg-panel: #11161a;
+    --bg-elev: #161c22;
+    --grid: #1f262d;
+    --text: #d8dde2;
+    --text-dim: #6b7681;
+    --text-faint: #3d464f;
+    --accent: #f0b90b;     /* amber - neutral signal */
+    --bull: #27d796;       /* green - risk on */
+    --bear: #ff4757;       /* red - risk off */
+    --warn: #ffa726;       /* orange - caution */
+    --info: #5dade2;       /* blue - informational */
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --display: 'Major Mono Display', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(39, 215, 150, 0.04) 0%, transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(240, 185, 11, 0.04) 0%, transparent 40%),
+      linear-gradient(rgba(31, 38, 45, 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(31, 38, 45, 0.4) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  }
+
+  .scanline {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      transparent 50%,
+      rgba(255, 255, 255, 0.012) 50%
+    );
+    background-size: 100% 3px;
+    z-index: 1000;
+    mix-blend-mode: overlay;
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  /* Header */
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: end;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--grid);
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .brand h1 {
+    font-family: var(--display);
+    font-size: 28px;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+
+  .brand h1 .accent {
+    color: var(--accent);
+  }
+
+  .brand .tag {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid var(--grid);
+    border-radius: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .clock {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+  .clock .live {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--bull);
+    border-radius: 50%;
+    margin-right: 8px;
+    box-shadow: 0 0 8px var(--bull);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .refresh-btn {
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 1px solid var(--grid);
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s ease;
+    position: relative;
+  }
+  .refresh-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  .refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  .refresh-btn .spinner {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: 1px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Hero price */
+  .hero {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1px;
+    background: var(--grid);
+    border: 1px solid var(--grid);
+    margin-bottom: 24px;
+  }
+  .hero-cell {
+    background: var(--bg-panel);
+    padding: 24px;
+  }
+  .hero-cell .label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .hero-cell .value {
+    font-size: 42px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .hero-cell .sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Grid */
+  .signal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) {
+    .signal-grid { grid-template-columns: 1fr; }
+    .hero { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--grid);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--grid);
+    background: var(--bg-elev);
+  }
+  .panel-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .panel-tier {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    padding: 2px 8px;
+    border: 1px solid var(--grid);
+    border-radius: 2px;
+  }
+  .panel-body {
+    padding: 20px 18px;
+  }
+
+  .metric-primary {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .metric-secondary {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    letter-spacing: 0.05em;
+  }
+  .metric-secondary .delta {
+    font-weight: 600;
+  }
+
+  .signal-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-top: 1px dashed var(--grid);
+  }
+  .signal-row:first-of-type {
+    border-top: 1px solid var(--grid);
+    margin-top: 8px;
+    padding-top: 14px;
+  }
+  .signal-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .signal-dot.bull { background: var(--bull); box-shadow: 0 0 6px var(--bull); }
+  .signal-dot.bear { background: var(--bear); box-shadow: 0 0 6px var(--bear); }
+  .signal-dot.neutral { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .signal-dot.warn { background: var(--warn); }
+
+  .signal-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+  .signal-value {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+    letter-spacing: 0.02em;
+  }
+
+  .interp {
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: var(--bg);
+    border-left: 2px solid var(--accent);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+  .interp.bull { border-left-color: var(--bull); }
+  .interp.bear { border-left-color: var(--bear); }
+  .interp strong { color: var(--text); font-weight: 600; }
+
+  .pos { color: var(--bull); }
+  .neg { color: var(--bear); }
+  .neut { color: var(--accent); }
+
+  /* Composite */
+  .composite {
+    background: var(--bg-panel);
+    border: 1px solid var(--grid);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: center;
+  }
+  .composite-title {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .composite-bar {
+    position: relative;
+    height: 6px;
+    background: linear-gradient(90deg,
+      var(--bear) 0%,
+      var(--bear) 25%,
+      var(--accent) 50%,
+      var(--bull) 75%,
+      var(--bull) 100%
+    );
+    border-radius: 3px;
+    margin-top: 12px;
+  }
+  .composite-marker {
+    position: absolute;
+    top: -6px;
+    width: 4px;
+    height: 18px;
+    background: var(--text);
+    box-shadow: 0 0 8px rgba(255,255,255,0.6);
+    transition: left 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .composite-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--text-faint);
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+  .composite-verdict {
+    font-family: var(--display);
+    font-size: 22px;
+    color: var(--accent);
+    text-align: right;
+    letter-spacing: 0.05em;
+  }
+  .composite-verdict.bull { color: var(--bull); }
+  .composite-verdict.bear { color: var(--bear); }
+  .composite-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: right;
+    margin-top: 4px;
+    letter-spacing: 0.1em;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--grid);
+    padding-top: 16px;
+    margin-top: 32px;
+    font-size: 10px;
+    color: var(--text-faint);
+    letter-spacing: 0.1em;
+    line-height: 1.7;
+  }
+  footer strong { color: var(--text-dim); font-weight: 600; }
+  footer a { color: var(--info); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  .footnotes {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: var(--bg-panel);
+    border: 1px solid var(--grid);
+    font-size: 10px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+  .footnotes h4 {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .footnotes .upgrade {
+    color: var(--text-faint);
+    font-style: italic;
+  }
+
+  .err {
+    color: var(--bear);
+    font-size: 11px;
+    font-style: italic;
+  }
+  .loading {
+    color: var(--text-faint);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  .loading::after {
+    content: '...';
+    animation: dots 1.2s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+  }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="container">
+
+  <header>
+    <div class="brand">
+      <h1>BTC<span class="accent">/</span>SIGNALS</h1>
+      <span class="tag">v1.0 // free-feed terminal</span>
+    </div>
+    <div class="header-actions">
+      <div class="clock"><span class="live"></span><span id="clock">—</span></div>
+      <button class="refresh-btn" id="refresh" onclick="loadAll()">Refresh All</button>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-cell">
+      <div class="label">BTC / USD — Spot</div>
+      <div class="value" id="price-main">—</div>
+      <div class="sub" id="price-sub">awaiting feed</div>
+    </div>
+    <div class="hero-cell">
+      <div class="label">Market Cap</div>
+      <div class="value" id="mcap" style="font-size: 24px;">—</div>
+      <div class="sub" id="dominance">—</div>
+    </div>
+    <div class="hero-cell">
+      <div class="label">24h Change</div>
+      <div class="value" id="change" style="font-size: 24px;">—</div>
+      <div class="sub">vs prior session</div>
+    </div>
+  </section>
+
+  <!-- Composite -->
+  <section class="composite">
+    <div>
+      <div class="composite-title">Composite Signal Read</div>
+      <div class="composite-bar">
+        <div class="composite-marker" id="composite-marker" style="left: 50%;"></div>
+      </div>
+      <div class="composite-labels">
+        <span>Risk Off</span>
+        <span>Bearish</span>
+        <span>Neutral</span>
+        <span>Bullish</span>
+        <span>Risk On</span>
+      </div>
+    </div>
+    <div>
+      <div class="composite-verdict" id="composite-verdict">—</div>
+      <div class="composite-sub" id="composite-sub">computing</div>
+    </div>
+  </section>
+
+  <!-- Signal grid -->
+  <section class="signal-grid">
+
+    <!-- Tier 1: Stablecoin supply -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Stablecoin Supply</div>
+        <div class="panel-tier">TIER 1 // FLOW</div>
+      </div>
+      <div class="panel-body">
+        <div class="metric-primary" id="stable-total">—</div>
+        <div class="metric-secondary" id="stable-meta">total stablecoin market cap (USD-pegged)</div>
+
+        <div class="signal-row">
+          <div class="signal-dot" id="stable-7d-dot"></div>
+          <div class="signal-label">7-day change</div>
+          <div class="signal-value" id="stable-7d">—</div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-dot" id="stable-30d-dot"></div>
+          <div class="signal-label">30-day change</div>
+          <div class="signal-value" id="stable-30d">—</div>
+        </div>
+
+        <div class="interp" id="stable-interp">
+          <strong>Why this matters:</strong> Stablecoins are dollars-on-chain. Expanding supply = fresh dry powder entering crypto. Contracting supply = capital leaving the system. Leading indicator for buying pressure.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier 2: Funding rate -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Perpetual Funding Rate</div>
+        <div class="panel-tier">TIER 2 // POSITIONING</div>
+      </div>
+      <div class="panel-body">
+        <div class="metric-primary" id="funding-rate">—</div>
+        <div class="metric-secondary" id="funding-meta">BTC-USDT-SWAP // OKX // 8h rate</div>
+
+        <div class="signal-row">
+          <div class="signal-dot" id="funding-annual-dot"></div>
+          <div class="signal-label">Annualized</div>
+          <div class="signal-value" id="funding-annual">—</div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-dot" id="funding-prev-dot"></div>
+          <div class="signal-label">Previous period</div>
+          <div class="signal-value" id="funding-prev">—</div>
+        </div>
+
+        <div class="interp" id="funding-interp">
+          <strong>Why this matters:</strong> When funding is very positive, longs are paying shorts heavily — the market is crowded long and primed for a squeeze down. Negative funding means crowded shorts. Extremes in either direction often precede reversals.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier 2: Open Interest -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Open Interest</div>
+        <div class="panel-tier">TIER 2 // LEVERAGE</div>
+      </div>
+      <div class="panel-body">
+        <div class="metric-primary" id="oi-usd">—</div>
+        <div class="metric-secondary" id="oi-meta">notional value of open BTC-USDT-SWAP positions // OKX</div>
+
+        <div class="signal-row">
+          <div class="signal-dot neutral"></div>
+          <div class="signal-label">BTC equivalent</div>
+          <div class="signal-value" id="oi-btc">—</div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-dot neutral"></div>
+          <div class="signal-label">% of BTC mcap</div>
+          <div class="signal-value" id="oi-pct">—</div>
+        </div>
+
+        <div class="interp">
+          <strong>Why this matters:</strong> OI is the total leverage in the system. Rising OI + rising price = real conviction. Rising OI + flat price = building tension (squeeze coming). High OI relative to mcap signals fragility — small moves trigger big liquidations.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier 4: Macro -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Dollar Strength (DXY Proxy)</div>
+        <div class="panel-tier">TIER 4 // MACRO</div>
+      </div>
+      <div class="panel-body">
+        <div class="metric-primary" id="dxy-value">—</div>
+        <div class="metric-secondary" id="dxy-meta">computed from FX rates // frankfurter.dev</div>
+
+        <div class="signal-row">
+          <div class="signal-dot" id="dxy-signal-dot"></div>
+          <div class="signal-label">Implied direction for BTC</div>
+          <div class="signal-value" id="dxy-signal">—</div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-dot neutral"></div>
+          <div class="signal-label">USD/EUR</div>
+          <div class="signal-value" id="dxy-eur">—</div>
+        </div>
+        <div class="signal-row">
+          <div class="signal-dot neutral"></div>
+          <div class="signal-label">USD/JPY</div>
+          <div class="signal-value" id="dxy-jpy">—</div>
+        </div>
+
+        <div class="interp">
+          <strong>Why this matters:</strong> Strong dollar = headwind for BTC (and most risk assets). Weak dollar = tailwind. DXY is one of the cleanest macro signals because BTC trades partly as a "dollar alternative." This is a proxy — close to but not identical to ICE DXY.
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Footnotes -->
+  <div class="footnotes">
+    <h4>Methodology + Limitations</h4>
+    <p>
+      All data pulled from <strong>free public APIs</strong>: CoinGecko (price/mcap),
+      DefiLlama (stablecoins), OKX (perp funding + OI), Frankfurter (FX → DXY proxy).
+      No paid keys. No scraping. No tracking.
+    </p>
+    <p style="margin-top: 8px;">
+      <strong>Composite signal</strong> is a simple weighted score across the four panels —
+      not a recommendation. It tells you what the available signals collectively imply,
+      nothing more.
+    </p>
+    <p class="upgrade" style="margin-top: 10px;">
+      Upgrade paths (require paid APIs or scraping): ETF flows (SoSoValue/Farside),
+      MVRV + SOPR + LTH supply (Glassnode), exchange netflows (CryptoQuant),
+      liquidation heatmaps (Coinglass), real yields (FRED — free but needs key).
+    </p>
+  </div>
+
+  <footer>
+    <div>
+      <strong>BTC/SIGNALS</strong> // single-page // no backend // no cookies //
+      built for humans who like data more than narratives
+    </div>
+    <div style="margin-top: 6px;">
+      Sources:
+      <a href="https://www.coingecko.com/api" target="_blank">CoinGecko</a> ·
+      <a href="https://defillama.com/docs/api" target="_blank">DefiLlama</a> ·
+      <a href="https://www.okx.com/docs-v5/" target="_blank">OKX</a> ·
+      <a href="https://frankfurter.dev/" target="_blank">Frankfurter</a>
+    </div>
+    <div style="margin-top: 6px;">
+      Not investment advice. Not financial advice. Just data + interpretation.
+      You're an adult. Make your own calls.
+    </div>
+  </footer>
+</div>
+
+<script>
+// ============================================================
+// BTC SIGNALS // pure browser, free APIs only
+// ============================================================
+
+const FMT = {
+  usd: (n, d = 0) => '$' + n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }),
+  pct: (n, d = 2) => (n >= 0 ? '+' : '') + n.toFixed(d) + '%',
+  big: (n) => {
+    if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+    if (n >= 1e9)  return '$' + (n / 1e9).toFixed(2)  + 'B';
+    if (n >= 1e6)  return '$' + (n / 1e6).toFixed(2)  + 'M';
+    return '$' + n.toFixed(0);
+  },
+};
+
+// Composite signal accumulator: -2 (bear) ... +2 (bull) per metric
+let signalScores = {};
+
+function setSignal(key, score, label) {
+  signalScores[key] = { score, label };
+}
+
+function classFor(score) {
+  if (score > 0.3) return 'bull';
+  if (score < -0.3) return 'bear';
+  return 'neutral';
+}
+
+// ---- Clock ----
+function tickClock() {
+  const d = new Date();
+  const utc = d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  document.getElementById('clock').textContent = utc;
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ============================================================
+// LOADERS
+// ============================================================
+
+async function loadPrice() {
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false');
+    const d = await r.json();
+    const price = d.market_data.current_price.usd;
+    const mcap = d.market_data.market_cap.usd;
+    const change24 = d.market_data.price_change_percentage_24h;
+    const change7  = d.market_data.price_change_percentage_7d;
+    const change30 = d.market_data.price_change_percentage_30d;
+    const dominance = d.market_data.market_cap_percentage?.btc;
+
+    document.getElementById('price-main').textContent = FMT.usd(price);
+    document.getElementById('price-sub').textContent =
+      `7d ${FMT.pct(change7)}  ·  30d ${FMT.pct(change30)}`;
+
+    document.getElementById('mcap').textContent = FMT.big(mcap);
+    if (dominance) {
+      document.getElementById('dominance').textContent = `BTC dominance ${dominance.toFixed(1)}%`;
+    }
+
+    const chEl = document.getElementById('change');
+    chEl.textContent = FMT.pct(change24);
+    chEl.className = 'value ' + (change24 >= 0 ? 'pos' : 'neg');
+
+    return { price, mcap };
+  } catch (e) {
+    document.getElementById('price-main').innerHTML = '<span class="err">feed unavailable</span>';
+    console.error('price', e);
+    return null;
+  }
+}
+
+async function loadStablecoins() {
+  try {
+    const r = await fetch('https://stablecoins.llama.fi/stablecoincharts/all');
+    const d = await r.json();
+
+    // Use peggedUSD circulating value (the dollar-tracking ones)
+    const series = d.map(p => ({
+      t: parseInt(p.date),
+      v: p.totalCirculating?.peggedUSD ?? 0,
+    })).filter(x => x.v > 0);
+
+    const latest = series[series.length - 1];
+    const d7  = series[series.length - 8]  || series[0];
+    const d30 = series[series.length - 31] || series[0];
+
+    const ch7  = ((latest.v - d7.v)  / d7.v)  * 100;
+    const ch30 = ((latest.v - d30.v) / d30.v) * 100;
+
+    document.getElementById('stable-total').textContent = FMT.big(latest.v);
+    document.getElementById('stable-meta').textContent =
+      'total USD-pegged stablecoin supply';
+
+    const ch7el = document.getElementById('stable-7d');
+    ch7el.textContent = FMT.pct(ch7);
+    ch7el.className = 'signal-value ' + (ch7 >= 0 ? 'pos' : 'neg');
+
+    const ch30el = document.getElementById('stable-30d');
+    ch30el.textContent = FMT.pct(ch30);
+    ch30el.className = 'signal-value ' + (ch30 >= 0 ? 'pos' : 'neg');
+
+    document.getElementById('stable-7d-dot').className = 'signal-dot ' +
+      (ch7 > 0.3 ? 'bull' : ch7 < -0.3 ? 'bear' : 'neutral');
+    document.getElementById('stable-30d-dot').className = 'signal-dot ' +
+      (ch30 > 1 ? 'bull' : ch30 < -1 ? 'bear' : 'neutral');
+
+    // Score: weight 30d more
+    let score = 0;
+    if (ch30 >  2) score += 1.5; else if (ch30 >  0.5) score += 0.7;
+    if (ch30 < -2) score -= 1.5; else if (ch30 < -0.5) score -= 0.7;
+    if (ch7  >  1) score += 0.5;
+    if (ch7  < -1) score -= 0.5;
+
+    let label;
+    if (score > 0.5) label = 'EXPANDING — fresh capital entering crypto';
+    else if (score < -0.5) label = 'CONTRACTING — capital leaving the system';
+    else label = 'FLAT — neither inflow nor outflow dominant';
+
+    const interp = document.getElementById('stable-interp');
+    interp.className = 'interp ' + classFor(score);
+    interp.innerHTML = `<strong>Read:</strong> ${label}. ` +
+      `30d change of ${FMT.pct(ch30)} on a $${(latest.v/1e9).toFixed(0)}B base ` +
+      `${score > 0 ? 'is constructive for risk assets including BTC' : score < 0 ? 'is a headwind' : 'is essentially neutral'}.`;
+
+    setSignal('stables', score, 'Stablecoin supply');
+  } catch (e) {
+    document.getElementById('stable-total').innerHTML = '<span class="err">feed unavailable</span>';
+    console.error('stables', e);
+  }
+}
+
+async function loadFunding() {
+  // Try OKX first (globally accessible), fall back to Binance
+  try {
+    const r = await fetch('https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP');
+    const d = await r.json();
+    const cur = parseFloat(d.data[0].fundingRate);
+    const prev = parseFloat(d.data[0].settFundingRate);
+
+    // OKX funding settles every 8 hours -> annualized = rate * 3 * 365
+    const curAnnual = cur * 3 * 365 * 100;
+    const prevAnnual = prev * 3 * 365 * 100;
+
+    document.getElementById('funding-rate').textContent = (cur * 100).toFixed(4) + '%';
+    document.getElementById('funding-rate').className = 'metric-primary ' + (cur >= 0 ? 'pos' : 'neg');
+
+    const aEl = document.getElementById('funding-annual');
+    aEl.textContent = FMT.pct(curAnnual, 1);
+    aEl.className = 'signal-value ' + (curAnnual >= 0 ? 'pos' : 'neg');
+
+    const pEl = document.getElementById('funding-prev');
+    pEl.textContent = (prev * 100).toFixed(4) + '% (' + FMT.pct(prevAnnual, 1) + ' annual)';
+    pEl.className = 'signal-value ' + (prev >= 0 ? 'pos' : 'neg');
+
+    // Score: funding is mean-reverting, so extremes are bearish/bullish contrarian
+    // Neutral zone: -10% to +10% annualized
+    // Mildly bullish: 10-30% (longs paying, healthy demand)
+    // Frothy: >30% (over-leveraged longs, squeeze risk)
+    // Negative: shorts paying — bullish contrarian
+    let score = 0;
+    let label;
+    if (curAnnual > 50) {
+      score = -1.2; label = 'OVERHEATED — longs over-leveraged, squeeze-down risk elevated';
+    } else if (curAnnual > 20) {
+      score = 0.3; label = 'BULLISH BIAS — healthy long demand, not yet frothy';
+    } else if (curAnnual > 5) {
+      score = 0.1; label = 'NEUTRAL-LONG — typical for an uptrend';
+    } else if (curAnnual > -5) {
+      score = 0; label = 'NEUTRAL — no directional pressure from leverage';
+    } else if (curAnnual > -20) {
+      score = 0.5; label = 'CONTRARIAN BULLISH — shorts paying, capitulation often near';
+    } else {
+      score = 1.0; label = 'EXTREME NEGATIVE — heavy short positioning, squeeze-up risk';
+    }
+
+    document.getElementById('funding-annual-dot').className = 'signal-dot ' + classFor(score);
+    document.getElementById('funding-prev-dot').className = 'signal-dot neutral';
+
+    const interp = document.getElementById('funding-interp');
+    interp.className = 'interp ' + classFor(score);
+    interp.innerHTML = `<strong>Read:</strong> ${label}.`;
+
+    setSignal('funding', score, 'Funding rate');
+  } catch (e) {
+    document.getElementById('funding-rate').innerHTML = '<span class="err">feed unavailable</span>';
+    document.getElementById('funding-meta').textContent = 'OKX blocked from this network — try a VPN or load from a different network';
+    console.error('funding', e);
+  }
+}
+
+async function loadOpenInterest(btcPrice, btcMcap) {
+  try {
+    const r = await fetch('https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=BTC-USDT-SWAP');
+    const d = await r.json();
+    const oiUsd = parseFloat(d.data[0].oiUsd);
+    const oiCcy = parseFloat(d.data[0].oiCcy);
+
+    document.getElementById('oi-usd').textContent = FMT.big(oiUsd);
+    document.getElementById('oi-btc').textContent = oiCcy.toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' BTC';
+
+    if (btcMcap) {
+      const pct = (oiUsd / btcMcap) * 100;
+      document.getElementById('oi-pct').textContent = pct.toFixed(3) + '%';
+    }
+
+    // OI alone isn't directional. Just informational here.
+    setSignal('oi', 0, 'Open interest');
+  } catch (e) {
+    document.getElementById('oi-usd').innerHTML = '<span class="err">feed unavailable</span>';
+    console.error('oi', e);
+  }
+}
+
+async function loadDXY() {
+  try {
+    // Frankfurter: free FX. Compute DXY proxy.
+    // ICE DXY weights: EUR 57.6, JPY 13.6, GBP 11.9, CAD 9.1, SEK 4.2, CHF 3.6
+    // Formula: DXY = 50.14348112 * EUR^(-0.576) * JPY^0.136 * GBP^(-0.119) * CAD^0.091 * SEK^0.042 * CHF^0.036
+    const r = await fetch('https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR,JPY,GBP,CHF,CAD,SEK');
+    const d = await r.json();
+    const { EUR, JPY, GBP, CHF, CAD, SEK } = d.rates;
+
+    // USD is base. We want USD vs basket.
+    // EUR: in DXY formula, USDEUR is rate of EUR per USD inverted -> we have USDEUR directly = EUR
+    // The formula uses pair rates as quoted (EURUSD, USDJPY, etc.). Reformulate:
+    //   EURUSD = 1/EUR ;  USDJPY = JPY ;  GBPUSD = 1/GBP ;  USDCAD = CAD ;  USDSEK = SEK ;  USDCHF = CHF
+    // DXY = 50.14348112 * EURUSD^-0.576 * USDJPY^0.136 * GBPUSD^-0.119 * USDCAD^0.091 * USDSEK^0.042 * USDCHF^0.036
+    const EURUSD = 1 / EUR;
+    const USDJPY = JPY;
+    const GBPUSD = 1 / GBP;
+    const USDCAD = CAD;
+    const USDSEK = SEK;
+    const USDCHF = CHF;
+
+    const dxy = 50.14348112
+      * Math.pow(EURUSD, -0.576)
+      * Math.pow(USDJPY,  0.136)
+      * Math.pow(GBPUSD, -0.119)
+      * Math.pow(USDCAD,  0.091)
+      * Math.pow(USDSEK,  0.042)
+      * Math.pow(USDCHF,  0.036);
+
+    document.getElementById('dxy-value').textContent = dxy.toFixed(2);
+    document.getElementById('dxy-eur').textContent = EUR.toFixed(4);
+    document.getElementById('dxy-jpy').textContent = JPY.toFixed(2);
+
+    // Heuristic: DXY > 105 = strong dollar (BTC headwind), < 100 = weak (tailwind)
+    let score = 0;
+    let label;
+    if (dxy > 108) { score = -1.0; label = 'STRONG USD — material headwind for BTC'; }
+    else if (dxy > 104) { score = -0.4; label = 'FIRM USD — mild headwind'; }
+    else if (dxy > 100) { score = 0; label = 'NEUTRAL USD — no material macro pressure'; }
+    else if (dxy > 96) { score = 0.5; label = 'SOFT USD — supportive for BTC'; }
+    else { score = 1.0; label = 'WEAK USD — strong tailwind for BTC'; }
+
+    document.getElementById('dxy-signal').textContent = label.split(' — ')[0];
+    document.getElementById('dxy-signal').className = 'signal-value ' +
+      (score > 0 ? 'pos' : score < 0 ? 'neg' : 'neut');
+    document.getElementById('dxy-signal-dot').className = 'signal-dot ' + classFor(score);
+
+    setSignal('dxy', score, 'Dollar strength');
+  } catch (e) {
+    document.getElementById('dxy-value').innerHTML = '<span class="err">feed unavailable</span>';
+    console.error('dxy', e);
+  }
+}
+
+// ============================================================
+// COMPOSITE
+// ============================================================
+function updateComposite() {
+  const scores = Object.values(signalScores);
+  if (scores.length === 0) return;
+
+  const total = scores.reduce((s, x) => s + x.score, 0);
+  const avg = total / scores.length;
+
+  // Map avg in [-2, +2] to position in [0%, 100%]
+  const pos = Math.max(0, Math.min(100, ((avg + 2) / 4) * 100));
+  document.getElementById('composite-marker').style.left = pos + '%';
+
+  let verdict, sub, klass;
+  if (avg > 0.6)       { verdict = 'BULLISH';      sub = 'multiple tailwinds aligned'; klass = 'bull'; }
+  else if (avg > 0.2)  { verdict = 'CONSTRUCTIVE'; sub = 'leaning risk-on';            klass = 'bull'; }
+  else if (avg > -0.2) { verdict = 'NEUTRAL';      sub = 'mixed / no clear edge';      klass = ''; }
+  else if (avg > -0.6) { verdict = 'CAUTIOUS';     sub = 'leaning risk-off';           klass = 'bear'; }
+  else                 { verdict = 'BEARISH';      sub = 'multiple headwinds aligned'; klass = 'bear'; }
+
+  const v = document.getElementById('composite-verdict');
+  v.textContent = verdict;
+  v.className = 'composite-verdict ' + klass;
+  document.getElementById('composite-sub').textContent = sub;
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+async function loadAll() {
+  const btn = document.getElementById('refresh');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Loading';
+
+  signalScores = {};
+
+  // Run in parallel where independent
+  const priceData = await loadPrice();
+  await Promise.all([
+    loadStablecoins(),
+    loadFunding(),
+    loadOpenInterest(priceData?.price, priceData?.mcap),
+    loadDXY(),
+  ]);
+
+  updateComposite();
+
+  btn.disabled = false;
+  btn.textContent = 'Refresh All';
+}
+
+// kick off
+loadAll();
+</script>
+</body>
+</html>
